@@ -159,7 +159,7 @@ int main() {
         cout << "4. Search Book by ISBN\n";
         cout << "5. Display all Books\n";
         cout << "6. Exit\n";
-        cout << "6. Enter your choice: ";
+        cout << "Enter your choice: ";
         cin >> choice;
         cin.ignore();
 
