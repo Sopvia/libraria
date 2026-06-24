@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <ctime>
 using namespace std;
 
 struct date {
@@ -16,27 +17,31 @@ class book {
     string title, author, isbn;
     int copies;
     date publish_date;
+    double price;
 
     public:
-    book(string t, string a, string i, int c, date p)
-    : title(t), author(a), isbn(i), copies(c), publish_date(p) {}
+    book(string t, string a, string i, int c, date p, double pr)
+    : title(t), author(a), isbn(i), copies(c), publish_date(p), price(pr) {}
 
     string getTitle() const {return title;}
     string getAuthor() const {return author;}
     string getIsbn() const {return isbn;}
     int getCopies() const {return copies;}
     date getPublishDate() const {return publish_date;}
+    double getPrice() const {return price;}
 
     void setTitle(std::string t) {title = t;}
     void setAuthor(std::string a) {author = a;}
     void setCopies(int c) {copies = c;}
     void setPublishDate(date p) {publish_date = p;}
+    void setPrice(double pr) {price = pr;}
 
     void display() const {
         cout << left << setw(40) << title
-                << setw(20) << author
+                << setw(15) << author
                 << setw(15) << isbn
-                << setw(10) << copies;
+                << setw(10) << copies
+                << setw(10) << price;
         
         cout << publish_date.year << "-"
             << setfill('0') << setw(2) << publish_date.month << "-"
@@ -46,9 +51,39 @@ class book {
     }
 };
 
+class sales {
+    private:
+    int num_sales;
+    date day;
+    double profit;
+
+    public:
+    sales(int s, date d, double p) : num_sales(s), day(d), profit(p) {};
+    sales() = default;
+
+    int getSales() const {return num_sales;}
+    date getDay() const {return day;}
+    double getProfit() const {return profit;}
+
+    void setSales(int s) {num_sales = s;}
+    void setDay(date d) {day = d;}
+    void setProfit(double p) {profit = p;}
+
+    void display() const {
+        cout << day.year << "-"
+            << setw(2) << day.month << "-"
+            << setw(2) << day.day;
+        cout << setw(20) << ""; 
+
+        cout << left << setw(20) << num_sales
+                    << setw(20) << profit << "\n";
+    };
+};
+
 class library {
     private:
     vector<book> books;
+    vector<sales> sales_list;
 
     public:
     void addBook(const book& Book) {
@@ -135,9 +170,10 @@ class library {
         }
 
         cout << left << setw(40) << "Title"
-                << setw(20) << "Author"
+                << setw(15) << "Author"
                 << setw(15) << "ISBN"
                 << setw(10) << "Copies"
+                << setw(10) << "Price"
                 << setw(10) << "Publish Date" << "\n";
         cout << string(100, '-') << "\n";
 
@@ -145,6 +181,62 @@ class library {
             b.display();
         }
     }
+
+    void sellBookByIsbn(const string& isbn, const int& copies, const date& sell_date) {
+        auto it = std::find_if(books.begin(), books.end(), [&](book& b) {
+            return b.getIsbn() == isbn;
+        });
+
+        if (it != books.end()) {
+            book& chosen_book = *it;
+            int current_copies = chosen_book.getCopies();
+            int copies_now = current_copies-copies;
+            chosen_book.setCopies(copies_now);
+            double calc_profit = chosen_book.getPrice()*copies;
+
+            auto i_t = std::find_if(sales_list.begin(), sales_list.end(), [&](const sales& s) {
+                return s.getDay().day == sell_date.day && 
+                       s.getDay().month == sell_date.month && 
+                       s.getDay().year == sell_date.year;
+            });
+
+            if (i_t != sales_list.end()) {
+                sales& day_sold = *i_t;
+                day_sold.setSales(day_sold.getSales()+copies);
+                day_sold.setProfit(day_sold.getProfit()+calc_profit);
+            } else {
+                sales newSale(copies, sell_date, calc_profit);
+                sales_list.push_back(newSale);
+            }
+            cout << "Sale successfully documented.\n";
+        } else {
+            cout << "No Book found with said ISBN.\n";
+        }
+    };
+
+    void displaySales() {
+        if (sales_list.empty()) {
+            cout << "No Sales yet.\n";
+            return;
+        }
+
+        sort(sales_list.begin(), sales_list.end(), [](const sales& a, const sales& b) {
+            date da = a.getDay();
+            date db = b.getDay();
+            if (da.year != db.year) return da.year < db.year;
+            if (da.month != db.month) return da.month < db.month;
+            return da.day < db.day;
+        });
+
+        cout << left << setw(30) << "Day"
+                << setw(20) << "Books sold"
+                << setw(20) << "Profit" << "\n";
+        cout << string(70, '-') << "\n";
+
+        for (const auto& s : sales_list) {
+            s.display();
+        }
+    };
 };
 
 int main() {
@@ -158,7 +250,9 @@ int main() {
         cout << "3. Search Book by Title\n";
         cout << "4. Search Book by ISBN\n";
         cout << "5. Display all Books\n";
-        cout << "6. Exit\n";
+        cout << "6. Sell Book\n";
+        cout << "7. Display Sales\n";
+        cout << "8. Exit\n";
         cout << "Enter your choice: ";
         cin >> choice;
         cin.ignore();
@@ -167,9 +261,11 @@ int main() {
         int copies;
         char sort_by;
         date p_date;
+        date today;
+        double price;
 
         switch (choice) {
-            case 1:
+            case 1: {
                 cout << "Enter Title: ";
                 getline(cin, title);
                 cout << "Enter Author: ";
@@ -183,43 +279,106 @@ int main() {
                 cout << "Enter Publish Month(MM): ";
                 cin >> p_date.month;
                 cout << "Enter Publish Day(DD): ";
-                cin >> p_date.day;
+                cin >> p_date.day;                
+                cout << "Enter Price: ";
+                cin >> price;
+                cin.ignore();
 
-                lib.addBook(book(title, author, isbn, copies, p_date));
+                lib.addBook(book(title, author, isbn, copies, p_date, price));
+                
+                cout << "\nPress Enter to return to main menu...";
+                cin.ignore();
+                cin.get();
                 break;
-            case 2:
+            }
+            case 2: {
                 cout << "Enter ISBN to remove Book: ";
                 getline(cin, isbn);
                 lib.removeBook(isbn);
+
+                cout << "\nPress Enter to return to main menu...";
+                cin.ignore();
+                cin.get();
                 break;
-            case 3:
+            }
+            case 3: {
                 cout << "Enter Title to search: ";
                 getline(cin, title);
                 lib.searchByTitle(title);
+
+                cout << "\nPress Enter to return to main menu...";
+                cin.ignore();
+                cin.get();
                 break;
-            case 4:
+            }
+            case 4: {
                 cout << "Enter ISBN to search: ";
                 getline(cin, isbn);
                 lib.searchByIsbn(isbn);
+
+                cout << "\nPress Enter to return to main menu...";
+                cin.ignore();
+                cin.get();
                 break;
-            case 5:
+            }
+            case 5: {
                 cout << "Sort Books by Title(t) or Date(d)?";
                 cin >> sort_by;
                 cin.ignore();
                 if (sort_by != 't' && sort_by != 'd') {
                     cout << "Invalid Input. Try again.\n";
-                    break;
                 } else {
                     lib.displayBooks(sort_by);
-                    break;
                 }
-            case 6:
+
+                cout << "\nPress Enter to return to main menu...";
+                cin.ignore();
+                cin.get();
+                break;
+            }
+            case 6: {
+                cout << "Enter ISBN of sold Book: ";
+                getline(cin, isbn);
+                cout << "Enter Copies sold: ";
+                cin >> copies;
+                cin.ignore();
+                std::time_t timestamp = std::time(nullptr);
+                std::tm* lokal = std::localtime(&timestamp);
+                int day = lokal->tm_mday;
+                int month = lokal->tm_mon + 1;
+                int year = lokal->tm_year + 1900;
+                today.day = day;
+                today.month = month;
+                today.year = year;
+
+                lib.sellBookByIsbn(isbn, copies, today);
+
+                cout << "\nPress Enter to return to main menu...";
+                cin.ignore();
+                cin.get();
+                break;
+            }
+            case 7: {
+                lib.displaySales();
+
+                cout << "\nPress Enter to return to main menu...";
+                cin.ignore();
+                cin.get();
+                break;
+            }
+            case 8: {
                 cout << "Exiting the program.\n";
                 break;
-            default:
+            }
+            default: {
                 cout << "Invalid choice. Try again.\n";
+
+                cout << "\nPress Enter to return to main menu...";
+                cin.ignore();
+                cin.get();
+            }
         }
-    } while (choice != 6);
+    } while (choice != 8);
 
     return 0;
 }
