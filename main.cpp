@@ -282,7 +282,7 @@ class library {
     };
 
     void rewriteFile() {
-        ofstream file(filename); // Öffnen ohne ios::app löscht den alten Inhalt automatisch
+        ofstream file(filename);
         if (!file.is_open()) {
             cerr << "Kritischer Fehler: Datei konnte nicht neu geschrieben werden!\n";
             return;
