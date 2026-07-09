@@ -328,7 +328,13 @@ class library {
      void loadFromFile() {
         ifstream file(filename);
         if (!file.is_open()) {
-            cout << "Hinweis: Keine bestehende Datei '" << filename << "' gefunden. Start mit leerer Bibliothek.\n";
+            ofstream newFile(filename);
+            if (!newFile.is_open()) {
+                cerr << "Error: Could not create file " << filename << "!\n";
+            } else {
+                newFile.close();
+            }
+
             return;
         }
 
