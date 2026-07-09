@@ -284,7 +284,7 @@ class library {
     void rewriteFile() {
         ofstream file(filename);
         if (!file.is_open()) {
-            cerr << "Kritischer Fehler: Datei konnte nicht neu geschrieben werden!\n";
+            cerr << "Fatal Error!\n";
             return;
         }
 
@@ -358,7 +358,7 @@ class library {
             books.push_back(book(title, author, isbn, stoi(copiesStr), p_date, stod(priceStr)));
         }
         file.close();
-        cout << "[System] " << books.size() << " Buecher erfolgreich aus '" << filename << "' geladen.\n";
+        cout << "[System] " << books.size() << " Books successfully read from'" << filename << "' .\n";
     }
 };
 
