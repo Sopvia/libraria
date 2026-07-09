@@ -1,0 +1,2 @@
+Silber;Kerstin Gier;1234;10;10.99;2013;3;8
+Rubinrot;test;12;2;5;2000;3;20

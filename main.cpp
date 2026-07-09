@@ -4,7 +4,11 @@
 #include <vector>
 #include <algorithm>
 #include <ctime>
+#include <fstream>
+#include <sstream>
+#include <cstdio>
 using namespace std;
+const string filename = "library_books.txt";
 
 struct date {
     int year;
@@ -30,8 +34,8 @@ class book {
     date getPublishDate() const {return publish_date;}
     double getPrice() const {return price;}
 
-    void setTitle(std::string t) {title = t;}
-    void setAuthor(std::string a) {author = a;}
+    void setTitle(string t) {title = t;}
+    void setAuthor(string a) {author = a;}
     void setCopies(int c) {copies = c;}
     void setPublishDate(date p) {publish_date = p;}
     void setPrice(double pr) {price = pr;}
@@ -84,10 +88,14 @@ class library {
     private:
     vector<book> books;
     vector<sales> sales_list;
+    const string dateiname;
 
     public:
+        library(string datei) : dateiname(datei) {
+        loadFromFile();
+    }
     void addBook(const book& Book) {
-        auto it = std::find_if(books.begin(), books.end(), [&](book& b) {
+        auto it = find_if(books.begin(), books.end(), [&](book& b) {
             return b.getIsbn() == Book.getIsbn();
         });
 
@@ -105,17 +113,57 @@ class library {
             }
         } else {
             books.push_back(Book);
+            appendBookToFile(Book);
             cout << "Book added successfully.\n";
         }
     }
 
+    void appendBookToFile(const book& b) {
+        ofstream file(filename, ios::app);
+
+        if (!file.is_open()) {
+            cerr << "Error: Couldn't " << filename << " open file!\n";
+            return;
+        }
+
+        file << b.getTitle() << ";"
+            << b.getAuthor() << ";"
+            << b.getIsbn() << ";"
+            << b.getCopies() << ";"
+            << b.getPrice() << ";"
+            << b.getPublishDate().year << ";"
+            << b.getPublishDate().month << ";"
+            << b.getPublishDate().day << "\n";
+
+        file.close();
+        cout << "Book successfully saved in " << filename << " .\n";
+    }
+
     void removeBook(const string& isbn) {
-        auto it = std::remove_if(books.begin(), books.end(), [&](book& b) {
+        auto it = remove_if(books.begin(), books.end(), [&](book& b) {
             return b.getIsbn() == isbn;
         });
 
         if (it != books.end()) {
             books.erase(it, books.end());
+            ofstream file(filename);
+            if (!file.is_open()) {
+                cerr << "Error: Could not update library file after removal!\n";
+                return;
+            }
+
+            for (const auto& b : books) {
+                file << b.getTitle() << ";"
+                    << b.getAuthor() << ";"
+                    << b.getIsbn() << ";"
+                    << b.getCopies() << ";"
+                    << b.getPrice() << ";"
+                    << b.getPublishDate().year << ";"
+                    << b.getPublishDate().month << ";"
+                    << b.getPublishDate().day << "\n";
+            }
+            file.close();
+
             cout << "Book removed successfully.\n";
         } else {
             cout << "No Book found with said ISBN.\n";
@@ -137,7 +185,7 @@ class library {
     }
 
     void searchByIsbn(const string& isbn) {
-        auto it = std::find_if(books.begin(), books.end(), [&](book& b) {
+        auto it = find_if(books.begin(), books.end(), [&](book& b) {
             return b.getIsbn() == isbn;
         });
 
@@ -183,16 +231,35 @@ class library {
     }
 
     void sellBookByIsbn(const string& isbn, const int& copies, const date& sell_date) {
-        auto it = std::find_if(books.begin(), books.end(), [&](book& b) {
+        auto it = find_if(books.begin(), books.end(), [&](book& b) {
             return b.getIsbn() == isbn;
         });
 
         if (it != books.end()) {
             book& chosen_book = *it;
             int current_copies = chosen_book.getCopies();
+
+            if (current_copies < copies) {
+                cout << "Error: Not enough copies available. Only " << current_copies << " left.\n";
+                return;
+            }
+
             int copies_now = current_copies-copies;
             chosen_book.setCopies(copies_now);
             double calc_profit = chosen_book.getPrice()*copies;
+
+            ofstream file(filename);
+            if (file.is_open()) {
+                for (const auto& b : books) {
+                    file << b.getTitle() << ";" << b.getAuthor() << ";" << b.getIsbn() << ";"
+                        << b.getCopies() << ";" << b.getPrice() << ";"
+                        << b.getPublishDate().year << ";" << b.getPublishDate().month << ";" << b.getPublishDate().day << "\n";
+                }
+                file.close();
+            } else {
+                cerr << "Error: Could not update library file after sale!\n";
+                return;
+            }
 
             auto i_t = std::find_if(sales_list.begin(), sales_list.end(), [&](const sales& s) {
                 return s.getDay().day == sell_date.day && 
@@ -213,6 +280,26 @@ class library {
             cout << "No Book found with said ISBN.\n";
         }
     };
+
+    void rewriteFile() {
+        ofstream file(filename); // Öffnen ohne ios::app löscht den alten Inhalt automatisch
+        if (!file.is_open()) {
+            cerr << "Kritischer Fehler: Datei konnte nicht neu geschrieben werden!\n";
+            return;
+        }
+
+        for (const auto& b : books) {
+            file << b.getTitle() << ";"
+                 << b.getAuthor() << ";"
+                 << b.getIsbn() << ";"
+                 << b.getCopies() << ";"
+                 << b.getPrice() << ";"
+                 << b.getPublishDate().year << ";"
+                 << b.getPublishDate().month << ";"
+                 << b.getPublishDate().day << "\n";
+        }
+        file.close();
+    }
 
     void displaySales() {
         if (sales_list.empty()) {
@@ -237,10 +324,40 @@ class library {
             s.display();
         }
     };
+
+     void loadFromFile() {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cout << "Hinweis: Keine bestehende Datei '" << filename << "' gefunden. Start mit leerer Bibliothek.\n";
+            return;
+        }
+
+        string line;
+        while (getline(file, line)) {
+            if (line.empty()) continue;
+
+            stringstream ss(line);
+            string title, author, isbn, copiesStr, priceStr, yearStr, monthStr, dayStr;
+
+            getline(ss, title, ';');
+            getline(ss, author, ';');
+            getline(ss, isbn, ';');
+            getline(ss, copiesStr, ';');
+            getline(ss, priceStr, ';');
+            getline(ss, yearStr, ';');
+            getline(ss, monthStr, ';');
+            getline(ss, dayStr, '\n');
+
+            date p_date = { stoi(yearStr), stoi(monthStr), stoi(dayStr) };
+            books.push_back(book(title, author, isbn, stoi(copiesStr), p_date, stod(priceStr)));
+        }
+        file.close();
+        cout << "[System] " << books.size() << " Buecher erfolgreich aus '" << filename << "' geladen.\n";
+    }
 };
 
 int main() {
-    library lib;
+    library lib(filename);
     int choice;
 
     do {
@@ -342,8 +459,8 @@ int main() {
                 cout << "Enter Copies sold: ";
                 cin >> copies;
                 cin.ignore();
-                std::time_t timestamp = std::time(nullptr);
-                std::tm* lokal = std::localtime(&timestamp);
+                time_t timestamp = time(nullptr);
+                tm* lokal = localtime(&timestamp);
                 int day = lokal->tm_mday;
                 int month = lokal->tm_mon + 1;
                 int year = lokal->tm_year + 1900;
