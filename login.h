@@ -19,6 +19,7 @@ class LoginDialog : public QDialog {
     public:
     LoginDialog(QWidget *parent = nullptr) : QDialog(parent) {
         setWindowTitle("Libraria Login");
+        setMinimumSize(340, 260);
 
         usernameEdit = new QLineEdit(this);
         usernameEdit->setPlaceholderText("Username");
@@ -35,6 +36,9 @@ class LoginDialog : public QDialog {
         buttonLayout->addWidget(registerButton);
 
         QVBoxLayout *layout = new QVBoxLayout(this);
+        layout->setContentsMargins(25, 25, 25, 25);
+        layout->setSpacing(15);   
+        
         layout->addWidget(usernameEdit);
         layout->addWidget(passwordEdit);
         layout->addLayout(buttonLayout);

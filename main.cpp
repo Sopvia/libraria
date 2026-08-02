@@ -230,12 +230,44 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setStyle(QStyleFactory::create("Fusion"));
     applyPinkPalette(app);
-    app.setStyleSheet(
-        "QWidget { background-color: palette(window); color: palette(window-text); }"
-        "QLineEdit, QTextEdit, QPlainTextEdit { background-color: palette(base); color: palette(text); }"
-        "QPushButton { background-color: palette(button); color: palette(button-text); border: 1px solid #FF1493; border-radius: 4px; padding: 5px; }"
-        "QHeaderView::section { background-color: palette(alternate-base); color: palette(window-text); }"
-    );
+
+    QString pinkStyle = R"(
+        QWidget {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+        }
+
+        QLineEdit {
+            background-color: #FFFFFF;
+            border: 2px solid #FFE4E1;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #4A2E35;
+        }
+        QLineEdit:focus {
+            border: 2px solid #FF69B4;
+        }
+
+        QPushButton {
+            background-color: #FFB6C1;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: #4A2E35;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background-color: #FF69B4;
+        }
+        QPushButton:pressed {
+            background-color: #ff46a9;
+        }
+
+        QDialog {
+            background-color: #FFF0F5;
+        }
+    )";
+    app.setStyleSheet(pinkStyle);
 
     LoginDialog login;
     if (login.exec() != QDialog::Accepted) {

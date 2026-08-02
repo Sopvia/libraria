@@ -17,6 +17,7 @@ class RegisterDialog : public QDialog {
     public:
     RegisterDialog(QWidget *parent = nullptr) : QDialog(parent) {
         setWindowTitle("Register");
+        setMinimumSize(340, 260);
         setModal(true);
 
         usernameEdit = new QLineEdit(this);
@@ -33,6 +34,9 @@ class RegisterDialog : public QDialog {
         registerButton = new QPushButton("Create Account", this);
 
         QVBoxLayout *layout = new QVBoxLayout(this);
+        layout->setContentsMargins(25, 25, 25, 25);
+        layout->setSpacing(15);
+
         layout->addWidget(usernameEdit);
         layout->addWidget(passwordEdit);
         layout->addWidget(passwordConfirmEdit);
