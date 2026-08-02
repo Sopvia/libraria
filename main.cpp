@@ -10,10 +10,13 @@
 #include <QDateEdit>
 #include <QInputDialog>
 #include <QTabWidget>
+#include <QStyleFactory>
 
 using namespace std;
 
+#include "login.h"
 #include "library.h"
+#include "stylesheet.h"
 
 class libraryGUI : public QWidget {
 public:
@@ -223,7 +226,22 @@ private:
 };
 
 int main(int argc, char *argv[]) {
+    qputenv("QT_QPA_PLATFORMTHEME", "fusion");
     QApplication app(argc, argv);
+    app.setStyle(QStyleFactory::create("Fusion"));
+    applyPinkPalette(app);
+    app.setStyleSheet(
+        "QWidget { background-color: palette(window); color: palette(window-text); }"
+        "QLineEdit, QTextEdit, QPlainTextEdit { background-color: palette(base); color: palette(text); }"
+        "QPushButton { background-color: palette(button); color: palette(button-text); border: 1px solid #FF1493; border-radius: 4px; padding: 5px; }"
+        "QHeaderView::section { background-color: palette(alternate-base); color: palette(window-text); }"
+    );
+
+    LoginDialog login;
+    if (login.exec() != QDialog::Accepted) {
+        return 0;
+    }
+
     library lib(filename);
     lib.loadFromFile();
     libraryGUI gui(lib);

@@ -9,8 +9,8 @@
 #include <sstream>
 using namespace std;
 
-const string filename = "library_books.txt";
-const string sales_filename = "library_sales.txt";
+const string filename = "build/library_books.txt";
+const string sales_filename = "build/library_sales.txt";
 
 struct date {
     int year, month, day;
