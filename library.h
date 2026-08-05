@@ -7,6 +7,11 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QVariant>
+#include <QDebug>
 using namespace std;
 
 const string filename = "build/library_books.txt";
@@ -64,21 +69,45 @@ class library {
     private:
     vector<book> books;
     vector<sales> sales_list;
-    const string fileName;
-    const string salesFilename;
+    const string dbPath;
 
-    void appendSaleToFile(const sales& s) {
-        fstream file(sales_filename, ios::app);
-        if (file.is_open()) {
-            file << s.getDay().year << ";" << s.getDay().month << ";" << s.getDay().day << ";"
-                    << s.getSales() << ";" << s.getProfit() << "\n";
+    void initDatabase() {
+        QSqlDatabase db = QSqlDatabase::database();
+
+        if (!db.isOpen()) {
+            db.setDatabaseName("library_system.db");
+            if (!db.open()) {
+                qDebug() << "Database cannot open:" << db.lastError().text();
+            return;
+            }
         }
+
+        QSqlQuery query(db);
+
+        query.exec("CREATE TABLE IF NOT EXISTS books ("
+                    "isbn TEXT PRIMARY KEY, "
+                    "title TEXT, "
+                    "author TEXT, "
+                    "copies INTEGER, "
+                    "price REAL, "
+                    "year INTEGER, "
+                    "month INTEGER, "
+                    "day INTEGER"");");
+
+        query.exec("CREATE TABLE IF NOT EXISTS sales ("
+                    "year INTEGER, "
+                    "month INTEGER, "
+                    "day INTEGER, "
+                    "sales_count INTEGER, "
+                    "profit REAL, "
+                    "PRIMARY KEY (year, month, day));");
     }
 
     public:
-    library(string datei) : fileName(datei) {
-        loadFromFile();
-        loadSalesFromFile();
+    library(string dbDatei) : dbPath(dbDatei) {
+        initDatabase();
+        loadFromDb();
+        loadSalesFromDb();
     };
 
     const vector<book>& getBooks() const { return books; }
@@ -89,49 +118,43 @@ class library {
             return b.getIsbn() == Book.getIsbn();
         });
 
+        QSqlQuery query;
         if (it != books.end()) {
             if (forceUpdate) {
-                it->setTitle(Book.getTitle());
-                it->setAuthor(Book.getAuthor());
-                it->setCopies(Book.getCopies());
-                it->setPrice(Book.getPrice());
-                it->setPublishDate(Book.getPublishDate());
-                saveAllToFile();
+                *it = Book;
+
+                query.prepare("UPDATE books SET title = :title, author = :author, copies = :copies, "
+                "price = :price, year = :year, month = :month, day = :day WHERE isbn = :isbn");
+                query.bindValue(":title", QString::fromStdString(Book.getTitle()));
+                query.bindValue(":author", QString::fromStdString(Book.getAuthor()));
+                query.bindValue(":copies", Book.getCopies());
+                query.bindValue(":price", Book.getPrice());
+                query.bindValue(":year", Book.getPublishDate().year);
+                query.bindValue(":month", Book.getPublishDate().month);
+                query.bindValue(":day", Book.getPublishDate().day);
+                query.bindValue(":isbn", QString::fromStdString(Book.getIsbn()));
+                query.exec();
+
                 return true;
             }
             return false;
         } else {
             books.push_back(Book);
-            appendBookToFile(Book);
+
+            query.prepare("INSERT INTO books (isbn, title, author, copies, price, year, month, day) "
+                "VALUES (:isbn, :title, :author, :copies, :price, :year, :month, :day)");
+            query.bindValue(":isbn", QString::fromStdString(Book.getIsbn()));
+            query.bindValue(":title", QString::fromStdString(Book.getTitle()));
+            query.bindValue(":author", QString::fromStdString(Book.getAuthor()));
+            query.bindValue(":copies", Book.getCopies());
+            query.bindValue(":price", Book.getPrice());
+            query.bindValue(":year", Book.getPublishDate().year);
+            query.bindValue(":month", Book.getPublishDate().month);
+            query.bindValue(":day", Book.getPublishDate().day);
+            query.exec();
+
             return true;
         }
-    };
-
-    void appendBookToFile(const book& b) {
-        ofstream file(filename, ios::app);
-        if (!file.is_open()) {return;}
-
-        file << b.getTitle() << ";"
-            << b.getAuthor() << ";"
-            << b.getIsbn() << ";"
-            << b.getCopies() << ";"
-            << b.getPrice() << ";"
-            << b.getPublishDate().year << ";"
-            << b.getPublishDate().month << ";"
-            << b.getPublishDate().day << "\n";
-
-        file.close();
-    };
-
-    void saveAllToFile() {
-        ofstream file(filename);
-        if (!file.is_open()) return;
-        for (const auto& b : books) {
-            file << b.getTitle() << ";" << b.getAuthor() << ";" << b.getIsbn() << ";"
-                 << b.getCopies() << ";" << b.getPrice() << ";"
-                 << b.getPublishDate().year << ";" << b.getPublishDate().month << ";" << b.getPublishDate().day << "\n";
-        }
-        file.close();
     }
 
     bool removeBook(const string& isbn) {
@@ -141,13 +164,17 @@ class library {
 
         if (it != books.end()) {
             books.erase(it, books.end());
-            saveAllToFile();
+
+            QSqlQuery query;
+            query.prepare("DELETE FROM books WHERE isbn = :isbn");
+            query.bindValue(":isbn", QString::fromStdString(isbn));
+            query.exec();
 
             return true;
         } else {
             return false;
         }
-    };
+    }
 
 /*     void searchByTitle(const string& title) {
         bool found = false;
@@ -186,7 +213,11 @@ class library {
         it->setCopies(it->getCopies() - copies);
         double calc_profit = it->getPrice() * copies;
 
-        saveAllToFile();
+        QSqlQuery query;
+        query.prepare("UPDATE books SET copies = :copies WHERE isbn = :isbn");
+        query.bindValue(":copies", it->getCopies());
+        query.bindValue(":isbn", QString::fromStdString(isbn));
+        query.exec();
 
         auto s_it = find_if(sales_list.begin(), sales_list.end(), [&](const sales& s) {
             return s.getDay().day == sell_date.day && 
@@ -197,11 +228,28 @@ class library {
         if (s_it != sales_list.end()) {
             s_it->setSales(s_it->getSales() + copies);
             s_it->setProfit(s_it->getProfit() + calc_profit);
+
+            query.prepare("UPDATE sales SET sales_count = :sales_count, profit = :profit "
+            "WHERE year = :year AND month = :month AND day = :day");
+            query.bindValue(":sales_count", s_it->getSales());
+            query.bindValue(":profit", s_it->getProfit());
+            query.bindValue(":year", sell_date.year);
+            query.bindValue(":month", sell_date.month);
+            query.bindValue(":day", sell_date.day);
+            query.exec();
         } else {
             sales_list.push_back(sales(copies, sell_date, calc_profit));
+            
+            query.prepare("INSERT INTO sales (year, month, day, sales_count, profit) "
+            "VALUES (:year, :month, :day, :sales_count, :profit)");
+            query.bindValue(":year", sell_date.year);
+            query.bindValue(":month", sell_date.month);
+            query.bindValue(":day", sell_date.day);
+            query.bindValue(":sales_count", copies);
+            query.bindValue(":profit", calc_profit);
+            query.exec();
         }
         
-        saveSalesToFile();
         return 0;
     };
 
@@ -222,70 +270,34 @@ class library {
         }
     }
 
-     void loadFromFile() {
-        ifstream file(filename);
-        if (!file.is_open()) {
-            ofstream newFile(filename);
-            newFile.close();
-        }
+     void loadFromDb() {
         books.clear();
+        QSqlQuery query("SELECT title, author, isbn, copies, price, year, month, day FROM books");
 
         string line;
-        while (getline(file, line)) {
-            if (line.empty()) continue;
+        while (query.next()) {
+            std::string title = query.value(0).toString().toStdString();
+            std::string author = query.value(1).toString().toStdString();
+            std::string isbn = query.value(2).toString().toStdString();
+            int copies = query.value(3).toInt();
+            double price = query.value(4).toDouble();
+            date p_date = { query.value(5).toInt(), query.value(6).toInt(), query.value(7).toInt() };
 
-            stringstream ss(line);
-            string title, author, isbn, copiesStr, priceStr, yearStr, monthStr, dayStr;
-
-            getline(ss, title, ';');
-            getline(ss, author, ';');
-            getline(ss, isbn, ';');
-            getline(ss, copiesStr, ';');
-            getline(ss, priceStr, ';');
-            getline(ss, yearStr, ';');
-            getline(ss, monthStr, ';');
-            getline(ss, dayStr, '\n');
-
-            date p_date = { stoi(yearStr), stoi(monthStr), stoi(dayStr) };
-            books.push_back(book(title, author, isbn, stoi(copiesStr), p_date, stod(priceStr)));
+            books.push_back(book(title, author, isbn, copies, p_date, price));
         }
-        file.close();
-    };
-
-    void saveSalesToFile() {
-        ofstream file(sales_filename);
-        if (!file.is_open()) {return;}
-        for (const auto& s : sales_list) {
-            file << s.getSales() << ";" << s.getProfit() << ";"
-                 << s.getDay().year << ";" << s.getDay().month << ";" << s.getDay().day << "\n";
-        }
-        file.close();
     }
 
-    void loadSalesFromFile() {
-        ifstream file(sales_filename);
-        if (!file.is_open()) {return;}
+    void loadSalesFromDb() {
         sales_list.clear();
+        QSqlQuery query("SELECT sales_count, profit, year, month, day FROM sales");
 
-        string line;
-        while (getline(file, line)) {
-            stringstream ss(line);
-            string y, m, d, s, p;
-            if (getline(ss, y, ';') && getline(ss, m, ';') && getline(ss, d, ';') &&
-                getline(ss, s, ';') && getline(ss, p, ';')) {
-                sales_list.emplace_back(stoi(s), date{stoi(y), stoi(m), stoi(d)}, stod(p));
-            }
+        while (query.next()) {
+            int count = query.value(0).toInt();
+            double profit = query.value(1).toDouble();
+            date s_date = { query.value(2).toInt(), query.value(3).toInt(), query.value(4).toInt() };
+
+            sales_list.emplace_back(count, s_date, profit);
         }
-        file.close();
     }
-
-/*     double getTotalProfit() {
-        double total = 0/0;
-        total = 0.0;
-        for (const auto& s : sales_list) {
-            total += s.getProfit();
-        }
-        return total;
-    } */
 };
 #endif

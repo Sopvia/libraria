@@ -3,6 +3,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
+#include <QComboBox>
 #include <QLineEdit>
 #include <QTableWidget>
 #include <QHeaderView>
@@ -150,14 +151,14 @@ private:
         }
     }
 
-    void onSortTitleClicked() {
-        myLibrary.sortBooks('t');
-        updateBooksTable();
-    }
-
-    void onSortDateClicked() {
-        myLibrary.sortBooks('d');
-        updateBooksTable();
+    void sortBooks(int index) {
+        if (index == 0) {
+            myLibrary.sortBooks('t');
+            updateBooksTable();
+        } else if (index == 1) {
+            myLibrary.sortBooks('d');
+            updateBooksTable();
+        }
     }
 
     QWidget* createBooksTab() {
@@ -173,6 +174,7 @@ private:
         txtPrice = new QLineEdit(this); txtPrice->setPlaceholderText("Price");
         dateEdit = new QDateEdit(QDate::currentDate(), this);
         dateEdit->setCalendarPopup(true);
+        QPushButton* btnAdd = new QPushButton("+", this);
 
         inputLayout->addWidget(txtTitle);
         inputLayout->addWidget(txtAuthor);
@@ -180,18 +182,17 @@ private:
         inputLayout->addWidget(txtCopies);
         inputLayout->addWidget(txtPrice);
         inputLayout->addWidget(dateEdit);
+        inputLayout->addWidget(btnAdd);
 
-        QPushButton* btnAdd = new QPushButton("Add Book", this);
         QPushButton* btnDelete = new QPushButton("Delete Book", this);
         QPushButton* btnSell = new QPushButton("Sell Book", this);
-        QPushButton* btnSortTitle = new QPushButton("Sort by: Title", this);
-        QPushButton* btnSortDate = new QPushButton("Sort by: Date", this);
+        QComboBox* sortComboBox = new QComboBox;
+        sortComboBox->addItem("Sort by Title");
+        sortComboBox->addItem("Sort by Date");
 
-        buttonLayout->addWidget(btnAdd);
         buttonLayout->addWidget(btnDelete);
         buttonLayout->addWidget(btnSell);
-        buttonLayout->addWidget(btnSortTitle);
-        buttonLayout->addWidget(btnSortDate);
+        buttonLayout->addWidget(sortComboBox);
 
         booksTableWidget = new QTableWidget(this);
         booksTableWidget->setColumnCount(6);
@@ -205,9 +206,8 @@ private:
         connect(btnAdd, &QPushButton::clicked, this, &libraryGUI::onAddClicked);
         connect(btnDelete, &QPushButton::clicked, this, &libraryGUI::onDeleteClicked);
         connect(btnSell, &QPushButton::clicked, this, &libraryGUI::onSellClicked);
-        connect(btnSortTitle, &QPushButton::clicked, this, &libraryGUI::onSortTitleClicked);
-        connect(btnSortDate, &QPushButton::clicked, this, &libraryGUI::onSortDateClicked);
-        
+        connect(sortComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &libraryGUI::sortBooks);
+
         return tab;
     }
 
@@ -248,6 +248,24 @@ int main(int argc, char *argv[]) {
             border: 2px solid #FF69B4;
         }
 
+        QDateEdit {
+            background-color: #FFFFFF;
+            border: 2px solid #FFE4E1;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #4A2E35;
+        }
+        QDateEdit::drop-down {
+            subcontrol-origin: padding;
+            subcontrol-position: top right;
+            width: 20px;
+            background: #FFB6C1;
+        }
+        QDateEdit::down-arrow {
+            width: 12px;
+            height: 12px;
+        }
+
         QPushButton {
             background-color: #FFB6C1;
             border: none;
@@ -260,7 +278,25 @@ int main(int argc, char *argv[]) {
             background-color: #FF69B4;
         }
         QPushButton:pressed {
-            background-color: #ff46a9;
+            background-color: #c95794;
+        }
+
+        QComboBox {
+            background-color: #FFFFFF;
+            border: 2px solid #FFE4E1;
+            color: #4A2E35;
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+        QComboBox::drop-down {
+            subcontrol-origin: padding;
+            subcontrol-position: top right;
+            width: 20px;
+            background: #FFB6C1;
+        }
+        QComboBox::down-arrow {
+            width: 12px;
+            height: 12px;
         }
 
         QDialog {
@@ -274,8 +310,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    library lib(filename);
-    lib.loadFromFile();
+    library lib("library_system.db");
     libraryGUI gui(lib);
     gui.show();
 
